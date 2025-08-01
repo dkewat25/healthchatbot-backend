@@ -1,28 +1,24 @@
-# main.py
 import os
-import json
 from flask import Flask, request, jsonify
 import google.generativeai as genai
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# --- Load Environment Variables ---
+# Load API Key
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-FIREBASE_CREDENTIALS_PATH = os.environ.get("FIREBASE_CREDENTIALS_PATH", "serviceAccountKey.json")
 
-# --- Initialize Flask ---
+# Initialize Flask
 app = Flask(__name__)
 
-# --- Initialize Gemini ---
+# Configure Gemini
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("models/gemini-1.5-flash")
 
-# --- Initialize Firebase ---
-cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
+# Initialize Firebase Admin SDK
+cred = credentials.Certificate("serviceAccountKey.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-# --- Endpoint ---
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.get_json()
@@ -33,45 +29,36 @@ def chat():
         return jsonify({"error": "Missing user_id or message"}), 400
 
     try:
-        # Fetch user profile from Firestore
-        user_ref = db.collection("users").document(user_id)
-        user_doc = user_ref.get()
+        doc_ref = db.collection("users").document(user_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "User profile not found."}), 404
 
-        if not user_doc.exists:
-            return jsonify({"error": f"User ID '{user_id}' not found in Firestore."}), 404
+        profile = doc.to_dict()
 
-        user_data = user_doc.to_dict()
+        profile_prompt = f"""
+You are a personalized AI health assistant. Here is the user's profile:
 
-        # Build user profile summary for prompt
-        user_profile = f"""
-Full Name: {user_data.get('fullName')}
-DOB: {user_data.get('dateOfBirth')}
-Gender: {user_data.get('gender')}
-Blood Group: {user_data.get('bloodGroup')}
-Allergies: {user_data.get('allergies')}
-Medical Conditions: {user_data.get('medicalConditions')}
-Medications: {user_data.get('medications')}
-Fall History: {user_data.get('fallDescription')}
-Sleep Hours: {user_data.get('sleepHours')}
-Mobility Level: {user_data.get('mobilityLevel')}
-"""
+- Full Name: {profile.get('fullName')}
+- Date of Birth: {profile.get('dateOfBirth')}
+- Gender: {profile.get('gender')}
+- Blood Group: {profile.get('bloodGroup')}
+- Allergies: {profile.get('allergies')}
+- Medical Conditions: {profile.get('medicalConditions')}
+- Medications: {profile.get('medications')}
+- Fall Description: {profile.get('fallDescription')}
+- Sleep Hours: {profile.get('sleepHours')}
+- Mobility Level: {profile.get('mobilityLevel')}
 
-        prompt = f"""
-You are a personalized AI medical assistant. The following is the user's health profile:
-
-{user_profile}
-
-Now answer the following user query safely and appropriately:
+Now, answer this query safely:
 "{user_message}"
 """
 
-        # Generate response from Gemini
-        response = model.generate_content(prompt)
+        response = model.generate_content(profile_prompt)
         return jsonify({"response": response.text})
 
     except Exception as e:
-        return jsonify({"error": f"Server error: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
-# --- Run ---
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)

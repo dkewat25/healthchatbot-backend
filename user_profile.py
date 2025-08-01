@@ -1,11 +1,10 @@
-# user_profile.py
 import firebase_admin
 from firebase_admin import credentials, firestore
-import os
+import json
 
 def initialize_firestore():
     if not firebase_admin._apps:
-        cred = credentials.Certificate(os.getenv("FIREBASE_CREDENTIALS_PATH"))
+        cred = credentials.Certificate("serviceAccountKey.json")
         firebase_admin.initialize_app(cred)
     return firestore.client()
 
@@ -13,9 +12,7 @@ def get_user_profile(uid):
     db = initialize_firestore()
     doc_ref = db.collection('users').document(uid)
     doc = doc_ref.get()
-    if not doc.exists:
-        return None
-    return doc.to_dict()
+    return doc.to_dict() if doc.exists else None
 
 def build_prompt_context(profile):
     if not profile:
@@ -40,4 +37,4 @@ You are a helpful AI medical assistant. The following is the user profile:
 - Height: {profile.get('height')} cm
 - Weight: {profile.get('weight')} kg
 - Language: {profile.get('language')}
-    """.strip()
+    """
