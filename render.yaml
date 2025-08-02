@@ -2,10 +2,10 @@ services:
   - type: web
     name: health-chatbot-api
     env: python
-    buildCommand: ""
-    startCommand: python main.py
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host=0.0.0.0 --port=10000
     envVars:
       - key: FIREBASE_CREDENTIALS_PATH
         value: serviceAccountKey.json
       - key: GEMINI_API_KEY
-        value: YOUR_GEMINI_API_KEY
+        value: your-actual-gemini-api-key
