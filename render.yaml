@@ -8,4 +8,4 @@ services:
       - key: FIREBASE_CREDENTIALS_PATH
         value: serviceAccountKey.json
       - key: GEMINI_API_KEY
-        value: your-actual-gemini-api-key
+        value: AIzaSyBCT9q2yrbRphMxtP7b9mvhCZrK3XRsNZg
